@@ -3,21 +3,25 @@ var arDrone         = require('ar-drone'),
     XboxController  = require('xbox-controller'),
     xbox            = new XboxController;
 
-var stickMaxPos     = 32727,
-    stickMaxNeg     = -32768,
-    triggerMax      = 255;
-    lightTouch      = true,
-    flipTimeout     = null,
-    flip            = {
+console.log('Battery: ' + client.battery);
+
+var stickMaxPos         = 32727,
+    stickMaxNeg         = -32768,
+    triggerMax          = 255,
+    velocityMultiplier  = .01,
+    lightTouch          = true,
+    flipTimeout         = null,
+    flip                = {
         left: false,
         right: false
     };
 
-var ControlModes    = {
+var ControlModes        = {
     DEFAULT: 0,
     RACING: 1
 };
 var currentControlMode = ControlModes.DEFAULT;
+
 
 flipCopter = function() {
     if(flip.left && flip.right){
@@ -94,7 +98,7 @@ xbox.on('lefttrigger', function(position) {
 
 function leftTriggerRacing(position) {
     console.log('brake');
-    client.back(0.3);
+    client.back(velocityMultiplier*position);
 }
 
 function leftTriggerDefault(position) {
@@ -104,7 +108,7 @@ function leftTriggerDefault(position) {
 
 xbox.on('righttrigger', function(position){
     if (currentControlMode === ControlModes.DEFAULT) {
-        rightTriggerDefault(position);
+        rightTriggerDefault(position);f
     } else {
         rightTriggerRacing(position);
     }
@@ -112,11 +116,13 @@ xbox.on('righttrigger', function(position){
 
 function rightTriggerRacing(position) {
     console.log('forwards');
-    client.front(0.1);
+    console.log('right trigger pressed ' + position);
+    client.front(velocityMultiplier*position);
 }
 
 function rightTriggerDefault(position) {
-    console.log('spin right')
+    console.log('spin right');
+    console.log('left trigger pressed ' + position);
     client.clockwise(position / triggerMax);
 }
 
@@ -129,7 +135,41 @@ xbox.on('left:move', function(position) {
 });
 
 function leftMoveRacing(position) {
-    // todo
+    var normLeft = 0,
+        left = true;
+
+    var normRotateLeft  = 0,
+        rotateLeft      = true;
+
+    if(position.x < 0) {
+        normLeft = position.x / stickMaxNeg;
+    } else {
+        left = false;
+        normLeft = position.x / stickMaxPos;
+    }
+
+    if(normLeft != 0) {
+        if(lightTouch) normLeft = normLeft / 2;
+        left ? client.left(normLeft) : client.right(normLeft);
+    } else {
+        client.left(normLeft);
+        client.right(normLeft);
+    }
+
+    if(position.x < 0) {
+        rotateLeft = false;
+        normRotateLeft = 10 * position.x / stickMaxNeg;
+    } else {
+        normRotateLeft = 10 * position.x / stickMaxPos;
+    }
+
+    if(normRotateLeft != 0) {
+        if(lightTouch) normRotateLeft = normRotateLeft / 2;
+        rotateLeft ? client.clockwise(normRotateLeft) : client.counterClockwise(normRotateLeft);
+    } else {
+        client.clockwise(normRotateLeft);
+        client.counterClockwise(normRotateLeft);
+    }
 }
 
 function leftMoveDefault(position) {
